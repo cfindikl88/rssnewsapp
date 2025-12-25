@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme CSS Variables */
+/* Theme CSS Variables */
+:root {
+  /* Default Dark Theme (Purple Design) */
+  --bg-primary: linear-gradient(135deg, #111827, #581c87, #4c1d95);
+  /* Slate 900 */
+  --bg-secondary: rgba(255, 255, 255, 0.03);
+  --bg-tertiary: rgba(255, 255, 255, 0.07);
+  --bg-quaternary: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #f8fafc;
+  /* Slate 50 */
+  --text-secondary: #e2e8f0;
+  /* Slate 200 */
+  --text-muted: #94a3b8;
+  /* Slate 400 */
+  --text-accent: #a855f7;
+  /* Purple 500 */
+
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  --accent-primary: #9333ea;
+  --accent-secondary: #3b82f6;
+
+  --glass-100: rgba(255, 255, 255, 0.05);
+  --glass-200: rgba(255, 255, 255, 0.1);
+  --glass-300: rgba(255, 255, 255, 0.15);
+
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+}
+
+.theme-light {
+  --bg-primary: #f8fafc;
+  /* Slate 50 */
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  /* Slate 100 */
+  --bg-quaternary: #e2e8f0;
+  /* Slate 200 */
+
+  --text-primary: #0f172a;
+  /* Slate 900 */
+  --text-secondary: #334155;
+  /* Slate 700 */
+  --text-muted: #64748b;
+  /* Slate 500 */
+  --text-accent: #7c3aed;
+  /* Violet 600 */
+
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-medium: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.15);
+
+  --accent-primary: #7c3aed;
+  --accent-secondary: #2563eb;
+
+  --glass-100: rgba(255, 255, 255, 0.7);
+  --glass-200: rgba(255, 255, 255, 0.9);
+  --glass-300: #ffffff;
+
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+}
+
+.theme-dark {
+  /* Uses :root values by default */
+}
+
+body {
+  background: var(--bg-primary);
+  min-height: 100vh;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Theme transition */
+*,
+*::before,
+*::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
+
+/* Custom Scrollbar for Glassmorphism feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb);
+  filter: brightness(1.3);
+}
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Marquee Animation */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 60s linear infinite;
+}
+
+.pause-marquee {
+  animation-play-state: running;
+}
+
+.group:hover .pause-marquee {
+  animation-play-state: paused;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Glassmorphism Utilities */
+.bg-glass-100 {
+  background: var(--glass-100);
+}
+
+.bg-glass-200 {
+  background: var(--glass-200);
+}
+
+.bg-glass-300 {
+  background: var(--glass-300);
+}
+
+.border-glass-100 {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.border-glass-200 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.border-glass-300 {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

@@ -1,0 +1,12 @@
+{
+    "name": "rss-news-app",
+    "version": "1.0.0",
+    "description": "RSS News Aggregator",
+    "scripts": {
+        "build": "cd client && npm install && npm run build",
+        "dev": "npm start --prefix server & npm run dev --prefix client"
+    },
+    "dependencies": {
+        "rss-parser": "^3.13.0"
+    }
+}

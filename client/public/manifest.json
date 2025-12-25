@@ -1,0 +1,15 @@
+{
+    "name": "RSS News Collector",
+    "short_name": "RSS News",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111827",
+    "theme_color": "#111827",
+    "icons": [
+        {
+            "src": "/rss_app_icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
