@@ -3,6 +3,7 @@ import FeedList from './components/FeedList';
 import NewsGrid from './components/NewsGrid';
 import ArticleModal from './components/ArticleModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import ThemeSkinSwitcher from './components/ThemeSkinSwitcher';
 import useRSS from './hooks/useRSS';
 import useBookmarks from './hooks/useBookmarks';
 import useRecommendations from './hooks/useRecommendations';
@@ -269,7 +270,8 @@ const App = () => {
                 </button>
               </div>
 
-
+              {/* Theme Skin Switcher */}
+              <ThemeSkinSwitcher />
 
               <button
                 onClick={fetchArticles}
