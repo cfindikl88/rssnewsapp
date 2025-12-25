@@ -10,14 +10,23 @@ const app = express();
 const parser = new Parser();
 const PORT = process.env.PORT || 3000;
 
-// Cache for fixtures
+// --- Caches ---
+const feedCache = new Map();
+const FEED_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 let fixturesCache = {
     data: null,
     timestamp: null,
     duration: 6 * 60 * 60 * 1000 // 6 hours
 };
-let earthquakesCache = { data: null, timestamp: null, duration: 10 * 60 * 1000 }; // 10 minutes
 
+let earthquakesCache = {
+    data: null,
+    timestamp: null,
+    duration: 10 * 60 * 1000 // 10 minutes
+};
+
+// --- Middleware ---
 app.use(cors());
 app.use(express.json());
 
@@ -26,10 +35,10 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"], // For inline scripts in development
+            scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "https:"], // Allow API calls
+            connectSrc: ["'self'", "https:"],
             fontSrc: ["'self'", "data:"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
@@ -37,34 +46,36 @@ app.use(helmet({
         },
     },
     hsts: {
-        maxAge: 31536000, // 1 year
+        maxAge: 31536000,
         includeSubDomains: true,
         preload: true
     },
     frameguard: {
-        action: 'deny' // Prevent clickjacking
+        action: 'deny'
     },
-    noSniff: true, // Prevent MIME type sniffing
-    xssFilter: true, // Enable XSS filter
+    noSniff: true,
+    xssFilter: true,
 }));
 
-// Rate limiting to protect APIs from abuse
+// Rate limiting
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 1000, // Increased for news application with many feeds
     message: { error: 'Too many requests, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
 });
 
-// Apply rate limiting to all /api routes
 app.use('/api', apiLimiter);
+
+// --- Routes ---
 
 // Health Check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Feeds with Caching
 app.get('/api/feeds', async (req, res) => {
     const { url } = req.query;
 
@@ -73,15 +84,37 @@ app.get('/api/feeds', async (req, res) => {
     }
 
     try {
+        const now = Date.now();
+        const cached = feedCache.get(url);
+
+        if (cached && (now - cached.timestamp) < FEED_CACHE_DURATION) {
+            console.log(`✅ Cache Hit: ${url}`);
+            return res.json({
+                ...cached.data,
+                fromCache: true,
+                cachedAt: new Date(cached.timestamp).toISOString()
+            });
+        }
+
+        console.log(`🌐 Fetching Fresh: ${url}`);
         const feed = await parser.parseURL(url);
-        res.json(feed);
+
+        feedCache.set(url, {
+            timestamp: now,
+            data: feed
+        });
+
+        res.json({
+            ...feed,
+            fromCache: false
+        });
     } catch (error) {
         console.error('Error parsing feed:', error);
         res.status(500).json({ error: 'Failed to parse feed', details: error.message });
     }
 });
 
-// New earthquakes endpoint
+// Earthquakes
 app.get('/api/earthquakes', async (req, res) => {
     try {
         const now = Date.now();
@@ -115,10 +148,9 @@ app.get('/api/earthquakes', async (req, res) => {
     }
 });
 
-// New fixtures endpoint
+// Fixtures
 app.get('/api/fixtures', async (req, res) => {
     try {
-        // Check cache
         const now = Date.now();
         const cacheValid = fixturesCache.data &&
             fixturesCache.timestamp &&
@@ -133,10 +165,7 @@ app.get('/api/fixtures', async (req, res) => {
             });
         }
 
-        // Fetch fresh data
         const fixtures = await getFixtures();
-
-        // Update cache
         fixturesCache.data = fixtures;
         fixturesCache.timestamp = now;
 

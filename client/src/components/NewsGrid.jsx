@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const NewsCard = ({ article, isBookmarked, onToggleBookmark, onReadArticle, onDeleteArticle, isRecommended }) => {
     const [summary, setSummary] = useState(null);
@@ -176,7 +176,40 @@ const NewsCard = ({ article, isBookmarked, onToggleBookmark, onReadArticle, onDe
 };
 
 const NewsGrid = ({ articles, loading, bookmarks = [], onToggleBookmark, onReadArticle, onDeleteArticle, recommendations = [] }) => {
-    if (loading) {
+    const [visibleCount, setVisibleCount] = useState(12);
+    const observerTarget = useRef(null);
+
+    const handleObserver = useCallback((entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && visibleCount < articles.length) {
+            setVisibleCount(prev => prev + 12);
+        }
+    }, [visibleCount, articles.length]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(handleObserver, {
+            root: null,
+            rootMargin: '200px',
+            threshold: 0.1
+        });
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => {
+            if (observerTarget.current) {
+                observer.unobserve(observerTarget.current);
+            }
+        };
+    }, [handleObserver]);
+
+    // Reset visible count when articles change substantially (e.g. filter change)
+    useEffect(() => {
+        setVisibleCount(12);
+    }, [articles.length]);
+
+    if (loading && articles.length === 0) {
         return (
             <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-theme-accent-primary"></div>
@@ -193,28 +226,44 @@ const NewsGrid = ({ articles, loading, bookmarks = [], onToggleBookmark, onReadA
         );
     }
 
+    const visibleArticles = articles.slice(0, visibleCount);
+
     return (
-        <div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6"
-            role="feed"
-            aria-label="News articles"
-            aria-busy={loading ? 'true' : 'false'}
-        >
-            {articles.map((article, idx) => {
-                const isBookmarked = bookmarks.some(b => b.link === article.link);
-                const isRecommended = recommendations.some(r => r.link === article.link);
-                return (
-                    <NewsCard
-                        key={`${article.link}-${idx}`}
-                        article={article}
-                        isBookmarked={isBookmarked}
-                        onToggleBookmark={onToggleBookmark}
-                        onReadArticle={onReadArticle}
-                        onDeleteArticle={onDeleteArticle}
-                        isRecommended={isRecommended}
-                    />
-                );
-            })}
+        <div className="flex flex-col">
+            <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6"
+                role="feed"
+                aria-label="News articles"
+                aria-busy={loading ? 'true' : 'false'}
+            >
+                {visibleArticles.map((article, idx) => {
+                    const isBookmarked = bookmarks.some(b => b.link === article.link);
+                    const isRecommended = recommendations.some(r => r.link === article.link);
+                    return (
+                        <NewsCard
+                            key={`${article.link}-${idx}`}
+                            article={article}
+                            isBookmarked={isBookmarked}
+                            onToggleBookmark={onToggleBookmark}
+                            onReadArticle={onReadArticle}
+                            onDeleteArticle={onDeleteArticle}
+                            isRecommended={isRecommended}
+                        />
+                    );
+                })}
+            </div>
+
+            {/* Sentinel element for Infinite Scroll */}
+            <div
+                ref={observerTarget}
+                className="h-20 w-full flex items-center justify-center"
+            >
+                {visibleCount < articles.length && (
+                    <div className="animate-pulse text-theme-text-muted text-sm font-medium">
+                        Daha fazla haber yükleniyor...
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

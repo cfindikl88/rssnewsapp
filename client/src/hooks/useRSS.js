@@ -48,7 +48,7 @@ const useRSS = () => {
 
     const fetchArticles = useCallback(async () => {
         setLoading(true);
-        let allArticles = [];
+        let completedFeeds = 0;
 
         // Keywords for auto-categorization
         const categoryKeywords = {
@@ -60,82 +60,90 @@ const useRSS = () => {
             'Sağlık': ['sağlık bakanlığı', 'corona', 'covid', 'grip', 'kanser', 'kalp', 'ameliyat', 'ilaç', 'eczane']
         };
 
-        try {
-            const promises = feeds.map(async (feed) => {
-                try {
-                    const res = await fetch(`${API_BASE}?url=${encodeURIComponent(feed.url)}`);
-                    if (!res.ok) throw new Error('Failed to fetch');
-                    const data = await res.json();
-                    return (data.items || []).map(item => {
-                        let cats = item.categories?.map(c => typeof c === 'string' ? c.trim() : c?.name).filter(Boolean) || [];
+        const fetchSingleFeed = async (feed) => {
+            try {
+                const res = await fetch(`${API_BASE}?url=${encodeURIComponent(feed.url)}`);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
 
-                        // Auto-categorize if empty or to augment
-                        const textCheck = (item.title + ' ' + (item.contentSnippet || '')).toLowerCase();
+                const newArticles = (data.items || []).map(item => {
+                    let cats = item.categories?.map(c => typeof c === 'string' ? c.trim() : c?.name).filter(Boolean) || [];
 
-                        Object.entries(categoryKeywords).forEach(([cat, keywords]) => {
-                            if (keywords.some(k => textCheck.includes(k))) {
-                                if (!cats.includes(cat)) cats.push(cat);
-                            }
-                        });
-
-                        // Extract Image
-                        let imageUrl = null;
-                        if (item.enclosure && item.enclosure.url && item.enclosure.type?.startsWith('image')) {
-                            imageUrl = item.enclosure.url;
-                        } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
-                            imageUrl = item['media:content'].$.url;
-                        } else if (item.content || item['content:encoded']) {
-                            const imgMatch = (item.content || item['content:encoded']).match(/src="([^"]+)"/);
-                            if (imgMatch) imageUrl = imgMatch[1];
+                    // Auto-categorize
+                    const textCheck = (item.title + ' ' + (item.contentSnippet || '')).toLowerCase();
+                    Object.entries(categoryKeywords).forEach(([cat, keywords]) => {
+                        if (keywords.some(k => textCheck.includes(k))) {
+                            if (!cats.includes(cat)) cats.push(cat);
                         }
-
-                        // Estimate read time
-                        const text = (item.title + ' ' + (item.contentSnippet || item.content || '')).replace(/<[^>]*>/g, '');
-                        const wordCount = text.split(/\s+/).length;
-                        const readTime = Math.max(1, Math.ceil(wordCount / 200));
-
-                        return {
-                            ...item,
-                            feedName: feed.name,
-                            categories: cats,
-                            imageUrl,
-                            id: item.guid || item.link, // Ensure unique ID
-                            lang: feed.lang || 'tr',
-                            readTime
-                        };
                     });
-                } catch (err) {
-                    console.error(`Error fetching ${feed.name}:`, err);
-                    return [];
+
+                    // Extract Image
+                    let imageUrl = null;
+                    if (item.enclosure && item.enclosure.url && item.enclosure.type?.startsWith('image')) {
+                        imageUrl = item.enclosure.url;
+                    } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
+                        imageUrl = item['media:content'].$.url;
+                    } else if (item.content || item['content:encoded']) {
+                        const imgMatch = (item.content || item['content:encoded']).match(/src="([^"]+)"/);
+                        if (imgMatch) imageUrl = imgMatch[1];
+                    }
+
+                    // Estimate read time
+                    const text = (item.title + ' ' + (item.contentSnippet || item.content || '')).replace(/<[^>]*>/g, '');
+                    const wordCount = text.split(/\s+/).length;
+                    const readTime = Math.max(1, Math.ceil(wordCount / 200));
+
+                    return {
+                        ...item,
+                        feedName: feed.name,
+                        categories: cats,
+                        imageUrl,
+                        id: item.guid || item.link,
+                        lang: feed.lang || 'tr',
+                        readTime
+                    };
+                });
+
+                // Update articles state incrementally
+                setArticles(prev => {
+                    const combined = [...prev, ...newArticles];
+                    // Deduplicate by link
+                    const unique = Array.from(new Map(combined.map(a => [a.link, a])).values());
+                    // Sort by date descending
+                    const sorted = unique.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+                    // Update categories too
+                    const allCats = sorted.flatMap(a => a.categories || []);
+                    const catCounts = allCats.reduce((acc, cat) => {
+                        acc[cat] = (acc[cat] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    const sortedCats = Object.keys(catCounts)
+                        .sort((a, b) => catCounts[b] - catCounts[a])
+                        .slice(0, 15);
+
+                    setCategories(sortedCats);
+
+                    return sorted;
+                });
+
+            } catch (err) {
+                console.error(`Error fetching ${feed.name}:`, err);
+            } finally {
+                completedFeeds++;
+                if (completedFeeds === feeds.length) {
+                    setLoading(false);
                 }
-            });
+            }
+        };
 
-            const results = await Promise.all(promises);
-            allArticles = results.flat();
+        // If it's a manual refresh or initial load, clear current articles to show fresh ones? 
+        // Actually for incremental, it's better to keep current if refreshing or clear if it's the very first load.
+        // Let's clear if it was empty.
 
-            // Sort by date descending
-            allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        feeds.forEach(feed => fetchSingleFeed(feed));
 
-            setArticles(allArticles);
-
-            // Extract unique categories for sidebar
-            const allCats = allArticles.flatMap(a => a.categories || []);
-            const catCounts = allCats.reduce((acc, cat) => {
-                acc[cat] = (acc[cat] || 0) + 1;
-                return acc;
-            }, {});
-
-            const sortedCats = Object.keys(catCounts)
-                .sort((a, b) => catCounts[b] - catCounts[a])
-                .slice(0, 15);
-
-            setCategories(sortedCats);
-
-        } catch (error) {
-            console.error('Global fetch error:', error);
-        } finally {
-            setLoading(false);
-        }
     }, [feeds]);
 
     useEffect(() => {
